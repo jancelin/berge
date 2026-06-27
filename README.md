@@ -41,6 +41,11 @@ orthophoto drone **RGB uniquement**. Aucune bande NIR n'est requise.
 | `couverture_vegetale_dense_pct` | 4 | Zones de forte biomasse |
 | `substrat_ouvert_pct` | 1 | Proportion de sol nu |
 
+<img width="1535" height="869" alt="image" src="https://github.com/user-attachments/assets/9144dd78-0530-4726-98ec-ea9420f55095" />
+
+<img width="1098" height="330" alt="image" src="https://github.com/user-attachments/assets/0946bcfa-96c9-4c38-9061-ab26e6a619e0" />
+
+
 ### Compatibilité
 
 - QGIS 3.36 LTR ou plus récent
