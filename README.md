@@ -131,21 +131,22 @@ Processing pour permettre leur ajustement sans modifier le code.
 
 ### 3.1 Méthode recommandée : Éditeur de scripts Processing
 
-1. Dans QGIS, ouvrir le **Panneau Processing** (menu *Traitement → Boîte à
+1. [⬇️ Télécharger Berge v0-7](https://github.com/jancelin/berge/releases/download/0.7/berge_v7_vegetation_rgb_texture.py)
+2. Dans QGIS, ouvrir le **Panneau Processing** (menu *Traitement → Boîte à
    outils*).
-2. En haut du panneau, cliquer sur l'icône **Python** puis
+3. En haut du panneau, cliquer sur l'icône **Python** puis
    *Ouvrir l'éditeur de scripts Python…*
-3. Dans l'éditeur, cliquer sur **Ouvrir un script…** et sélectionner le
-   fichier `berge_v0.7_vegetation_rgb_texture.py`.
-4. Cliquer sur **Enregistrer sous…** et placer le script dans le dossier
+4. Dans l'éditeur, cliquer sur **Ouvrir un script…** et sélectionner le
+   fichier `berge_v7_vegetation_rgb_texture.py`.
+5. Cliquer sur **Enregistrer sous…** et placer le script dans le dossier
    des scripts utilisateur QGIS :
    - Windows : `C:\Users\<nom>\AppData\Roaming\QGIS\QGIS3\profiles\default\processing\scripts\`
    - Linux   : `~/.local/share/QGIS/QGIS3/profiles/default/processing/scripts/`
-5. Cliquer sur **Exécuter dans l'éditeur** une première fois pour valider
+6. Cliquer sur **Exécuter dans l'éditeur** une première fois pour valider
    l'absence d'erreur de syntaxe.
-6. Fermer l'éditeur. Dans la boîte à outils Processing, le groupe **BERGE**
+7. Fermer l'éditeur. Dans la boîte à outils Processing, le groupe **BERGE**
    doit apparaître avec l'algorithme
-   *BERGE v0.7 - RGB · CIVE+ExG+VEG · entropie · saturation · 4 garde-fous*.
+   *BERGE v7 - RGB · CIVE+ExG+VEG · entropie · saturation · 4 garde-fous*.
 
 > **Si le groupe BERGE n'apparaît pas** : cliquer sur l'icône de rafraîchissement
 > (flèche circulaire) en haut de la boîte à outils Processing, ou fermer et
@@ -153,7 +154,7 @@ Processing pour permettre leur ajustement sans modifier le code.
 
 ### 3.2 Méthode alternative : dépôt dans le dossier scripts
 
-Copier directement `berge_v0.7_vegetation_rgb_texture.py` dans le dossier
+Copier directement `berge_v7_vegetation_rgb_texture.py` dans le dossier
 scripts utilisateur indiqué ci-dessus, puis relancer QGIS.
 
 ### 3.3 Vérifier les dépendances
