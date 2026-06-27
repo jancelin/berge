@@ -63,7 +63,15 @@ from qgis.core import (
     QgsProcessingParameterString,
     QgsProcessingParameterNumber,
     QgsProcessingParameterBoolean,
+    QgsRasterLayer,
+    QgsVectorLayer,
+    QgsRasterShader,
+    QgsColorRampShader,
+    QgsSingleBandPseudoColorRenderer,
+    QgsPalettedRasterRenderer,
+    QgsFillSymbol,
 )
+from qgis.PyQt.QtGui import QColor
 
 import os
 import csv
@@ -630,6 +638,272 @@ class BergeV7Algorithm(QgsProcessingAlgorithm):
         conn.close()
         feedback.pushInfo('  tables GeoPackage : stats_pct, berge_parameters, berge_metadata_json')
 
+    # ── Styles QGIS intégrés au GeoPackage ────────────────────────────────────
+
+    def _berge_continuous_colors(self):
+        """Rampe issue du style QGIS manuel BERGE : violet → bleu → cyan → vert → jaune → rouge."""
+        return [
+            '#30123b', '#4147ad', '#4777ef', '#38a5fb', '#1bd0d5',
+            '#26eda6', '#64fd6a', '#a4fc3c', '#d3e835', '#f5c63a',
+            '#fe992c', '#f36315', '#d93807', '#b01901', '#7a0403',
+        ]
+
+    def _format_style_label(self, value):
+        try:
+            return f'{float(value):.4f}'.replace('.', ',')
+        except Exception:
+            return str(value)
+
+    def _quantile_breaks(self, array, nodata=None, n_classes=15):
+        """
+        Calcule les ruptures de style comme QGIS en mode Quantile.
+        Les NoData, NaN et infinis sont exclus.
+        """
+        vals = np.asarray(array, dtype=np.float64).ravel()
+        vals = vals[np.isfinite(vals)]
+        if nodata is not None:
+            vals = vals[vals != float(nodata)]
+        # Exclure explicitement la sentinelle BERGE des rasters Float32.
+        vals = vals[vals != -9999.0]
+        if vals.size == 0:
+            return None
+
+        qs = np.linspace(0.0, 100.0, int(n_classes))
+        breaks = np.nanpercentile(vals, qs).astype(float)
+
+        # QGIS tolère mal les listes où beaucoup de quantiles sont identiques
+        # (cas des rasters normalisés saturés à 0/1). On force une croissance
+        # stricte très faible sans modifier visuellement la classification.
+        vmin = float(np.nanmin(vals))
+        vmax = float(np.nanmax(vals))
+        if not np.isfinite(vmin) or not np.isfinite(vmax):
+            return None
+        if abs(vmax - vmin) < 1e-12:
+            vmax = vmin + 1.0
+            breaks = np.linspace(vmin, vmax, int(n_classes))
+        else:
+            eps = max(abs(vmax - vmin) * 1e-9, 1e-9)
+            for i in range(1, len(breaks)):
+                if breaks[i] <= breaks[i - 1]:
+                    breaks[i] = breaks[i - 1] + eps
+        return breaks
+
+    def _set_continuous_raster_style(self, layer, array, nodata, opacity=0.60, n_classes=15):
+        breaks = self._quantile_breaks(array, nodata=nodata, n_classes=n_classes)
+        if breaks is None:
+            return False
+
+        colors = self._berge_continuous_colors()
+        if len(colors) != len(breaks):
+            raise QgsProcessingException('Nombre de couleurs BERGE incohérent avec les classes de style.')
+
+        ramp_items = []
+        for value, color in zip(breaks, colors):
+            ramp_items.append(
+                QgsColorRampShader.ColorRampItem(
+                    float(value), QColor(color), self._format_style_label(value)
+                )
+            )
+
+        color_shader = QgsColorRampShader()
+        color_shader.setColorRampType(QgsColorRampShader.Interpolated)
+        try:
+            # 3 = Quantile dans le XML QGIS ; l'enum existe dans QGIS 3.36.
+            color_shader.setClassificationMode(QgsColorRampShader.Quantile)
+        except Exception:
+            pass
+        color_shader.setColorRampItemList(ramp_items)
+
+        raster_shader = QgsRasterShader()
+        raster_shader.setRasterShaderFunction(color_shader)
+
+        renderer = QgsSingleBandPseudoColorRenderer(layer.dataProvider(), 1, raster_shader)
+        layer.setRenderer(renderer)
+        layer.setOpacity(float(opacity))
+        return True
+
+    def _set_classes_style(self, layer):
+        entries = [
+            QgsPalettedRasterRenderer.Class(0, QColor(0, 0, 0, 0), 'NoData / hors emprise / eau'),
+            QgsPalettedRasterRenderer.Class(1, QColor('#b46e3c'), '1 · sol nu / substrat homogène'),
+            QgsPalettedRasterRenderer.Class(2, QColor('#d2be55'), '2 · végétation sèche / mixte'),
+            QgsPalettedRasterRenderer.Class(3, QColor('#46b95f'), '3 · végétation verte'),
+            QgsPalettedRasterRenderer.Class(4, QColor('#007828'), '4 · végétation dense'),
+        ]
+        layer.setRenderer(QgsPalettedRasterRenderer(layer.dataProvider(), 1, entries))
+        layer.setOpacity(0.60)
+        return True
+
+    def _set_binary_vegetation_style(self, layer, label):
+        entries = [
+            QgsPalettedRasterRenderer.Class(0, QColor(0, 0, 0, 0), '0 · hors indicateur'),
+            QgsPalettedRasterRenderer.Class(1, QColor('#f7fcf5'), label),
+        ]
+        layer.setRenderer(QgsPalettedRasterRenderer(layer.dataProvider(), 1, entries))
+        layer.setOpacity(0.60)
+        return True
+
+    def _set_binary_guard_style(self, layer, label):
+        entries = [
+            QgsPalettedRasterRenderer.Class(0, QColor(0, 0, 0, 0), '0 · non activé'),
+            QgsPalettedRasterRenderer.Class(1, QColor('#d7301f'), label),
+        ]
+        layer.setRenderer(QgsPalettedRasterRenderer(layer.dataProvider(), 1, entries))
+        layer.setOpacity(0.70)
+        return True
+
+    def _set_emprise_style(self, layer):
+        symbol = QgsFillSymbol.createSimple({
+            'style': 'no',
+            'outline_style': 'solid',
+            'outline_color': '35,35,35,255',
+            'outline_width': '0.35',
+            'outline_width_unit': 'MM',
+        })
+        layer.renderer().setSymbol(symbol)
+        return True
+
+    def _gpkg_style_exists(self, gpkg_path, table_name, style_name):
+        try:
+            conn = sqlite3.connect(gpkg_path)
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='layer_styles'"
+            )
+            if cur.fetchone() is None:
+                conn.close()
+                return False
+            cur.execute(
+                "SELECT COUNT(*) FROM layer_styles WHERE f_table_name=? AND styleName=?",
+                (table_name, style_name)
+            )
+            count = int(cur.fetchone()[0])
+            conn.close()
+            return count > 0
+        except Exception:
+            return False
+
+    def _save_layer_style_to_gpkg(self, layer, gpkg_path, table_name, feedback):
+        """
+        Enregistre le style dans la table QGIS `layer_styles` du GeoPackage.
+        Méthode principale : API QGIS. Fallback : insertion SQLite du QML généré.
+        """
+        style_name = 'BERGE défaut'
+        description = f'Style par défaut généré automatiquement par BERGE v7 pour {table_name}'
+
+        try:
+            res = layer.saveStyleToDatabase(style_name, description, True, '')
+            # Selon les versions QGIS, le retour peut être None, bool, ou tuple.
+            api_ok = False
+            if isinstance(res, tuple):
+                api_ok = any(isinstance(x, bool) and x for x in res)
+                if len(res) >= 2 and res[1] is True:
+                    api_ok = True
+            elif res is True or res is None:
+                api_ok = True
+            if api_ok and self._gpkg_style_exists(gpkg_path, table_name, style_name):
+                return True
+        except Exception as exc:
+            feedback.reportError(
+                f'API QGIS saveStyleToDatabase indisponible pour {table_name} : {exc}. '
+                'Tentative fallback SQLite.', fatalError=False
+            )
+
+        tmp_qml = os.path.join(tempfile.gettempdir(), f'berge_style_{table_name}.qml')
+        try:
+            layer.saveNamedStyle(tmp_qml)
+            if not os.path.exists(tmp_qml):
+                return False
+            with open(tmp_qml, 'r', encoding='utf-8') as f:
+                qml = f.read()
+
+            conn = sqlite3.connect(gpkg_path)
+            cur = conn.cursor()
+            cur.execute("""CREATE TABLE IF NOT EXISTS layer_styles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                f_table_catalog TEXT,
+                f_table_schema TEXT,
+                f_table_name TEXT,
+                f_geometry_column TEXT,
+                styleName TEXT,
+                styleQML TEXT,
+                styleSLD TEXT,
+                useAsDefault INTEGER,
+                description TEXT,
+                owner TEXT,
+                ui TEXT,
+                update_time TEXT
+            )""")
+            cur.execute(
+                "DELETE FROM layer_styles WHERE f_table_name=? AND styleName=?",
+                (table_name, style_name)
+            )
+            cur.execute("""INSERT INTO layer_styles(
+                f_table_catalog, f_table_schema, f_table_name, f_geometry_column,
+                styleName, styleQML, styleSLD, useAsDefault, description, owner, ui, update_time
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now'))""",
+                ('', '', table_name, '', style_name, qml, '', 1, description, 'BERGE', '')
+            )
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as exc:
+            feedback.reportError(f'Fallback SQLite style échoué pour {table_name} : {exc}', fatalError=False)
+            return False
+
+    def _apply_gpkg_styles(self, gpkg_path, raster_style_specs, feedback):
+        """Applique et enregistre les styles QGIS par défaut pour les couches du GeoPackage."""
+        feedback.pushInfo('Écriture des styles QGIS intégrés au GeoPackage...')
+
+        ok_count = 0
+        for table_name, spec in raster_style_specs.items():
+            uri = f'GPKG:{gpkg_path}:{table_name}'
+            layer = QgsRasterLayer(uri, table_name, 'gdal')
+            if not layer.isValid():
+                feedback.reportError(f'Style ignoré : couche raster invalide {table_name}', fatalError=False)
+                continue
+
+            kind = spec.get('kind')
+            styled = False
+            if kind == 'continuous':
+                styled = self._set_continuous_raster_style(
+                    layer,
+                    spec.get('array'),
+                    spec.get('nodata', -9999),
+                    opacity=spec.get('opacity', 0.60),
+                    n_classes=spec.get('classes', 15),
+                )
+            elif kind == 'classes':
+                styled = self._set_classes_style(layer)
+            elif kind == 'binary_vegetation':
+                styled = self._set_binary_vegetation_style(layer, spec.get('label', '1 · végétation'))
+            elif kind == 'binary_guard':
+                styled = self._set_binary_guard_style(layer, spec.get('label', '1 · garde-fou activé'))
+            elif kind == 'rgb':
+                # Le fournisseur GDAL ouvre déjà le RGB en multibande couleur ; on enregistre le style natif.
+                layer.setOpacity(1.0)
+                styled = True
+
+            if styled and self._save_layer_style_to_gpkg(layer, gpkg_path, table_name, feedback):
+                ok_count += 1
+                feedback.pushInfo(f'  style GeoPackage : {table_name}')
+            else:
+                feedback.reportError(f'Style non enregistré pour : {table_name}', fatalError=False)
+
+        # Style du vecteur d'emprise.
+        v_uri = f'{gpkg_path}|layername=emprise'
+        v_layer = QgsVectorLayer(v_uri, 'emprise', 'ogr')
+        if v_layer.isValid():
+            try:
+                self._set_emprise_style(v_layer)
+                if self._save_layer_style_to_gpkg(v_layer, gpkg_path, 'emprise', feedback):
+                    ok_count += 1
+                    feedback.pushInfo('  style GeoPackage : emprise')
+            except Exception as exc:
+                feedback.reportError(f'Style emprise non enregistré : {exc}', fatalError=False)
+
+        feedback.pushInfo(f'  styles enregistrés : {ok_count}')
+
     # ── processAlgorithm ──────────────────────────────────────────────────────
 
     def processAlgorithm(self, parameters, context, feedback):
@@ -1064,34 +1338,64 @@ class BergeV7Algorithm(QgsProcessingAlgorithm):
 
             # ── 11. GeoPackage ───────────────────────────────────────────────
             raster_items = []
+            raster_style_specs = {}
 
-            def add_raster(table, arr, dtype, nodata, color=None):
+            def add_raster(table, arr, dtype, nodata, color=None, style_kind=None, style_label=None):
                 path = os.path.join(tmp_dir, f'{prefix}_{table}.tif')
                 self._write_tif(path, arr, dtype, nodata, gt, proj, color)
                 raster_items.append((table, path))
+                if style_kind:
+                    raster_style_specs[table] = {
+                        'kind': style_kind,
+                        'array': arr,
+                        'nodata': nodata,
+                        'label': style_label,
+                    }
                 return path
 
             raster_items.append(('rgb_clip', rgb_clip))
-            add_raster('classes',               final_classes,           gdal.GDT_Byte,    0, self._class_color_table())
-            add_raster('vegetation_stricte',    veg_strict,              gdal.GDT_Byte,    0)
-            add_raster('vegetation_ecologique', veg_eco,                 gdal.GDT_Byte,    0)
-            add_raster('berge_score',           berge_score,             gdal.GDT_Float32, -9999)
+            raster_style_specs['rgb_clip'] = {'kind': 'rgb'}
+
+            add_raster('classes', final_classes, gdal.GDT_Byte, 0,
+                       self._class_color_table(), style_kind='classes')
+            add_raster('vegetation_stricte', veg_strict, gdal.GDT_Byte, 0,
+                       style_kind='binary_vegetation',
+                       style_label='1 · végétation stricte classes 3+4')
+            add_raster('vegetation_ecologique', veg_eco, gdal.GDT_Byte, 0,
+                       style_kind='binary_vegetation',
+                       style_label='1 · végétation écologique classes 2+3+4')
+            add_raster('berge_score', berge_score, gdal.GDT_Float32, -9999,
+                       style_kind='continuous')
 
             if keep_intermed:
-                add_raster('cive',              cive,           gdal.GDT_Float32, -9999)
-                add_raster('exg',               exg,            gdal.GDT_Float32, -9999)
-                add_raster('veg_index',         veg,            gdal.GDT_Float32, -9999)
-                add_raster('spectral_index',    spectral,       gdal.GDT_Float32, -9999)
-                add_raster('green_density',     green_density,  gdal.GDT_Float32, -9999)
-                add_raster('dry_texture',       dry_texture,    gdal.GDT_Float32, -9999)
-                add_raster('saturation',        sat,            gdal.GDT_Float32, -9999)
-                add_raster('entropy_local',     entropy,        gdal.GDT_Float32, -9999)
-                add_raster('richness',          richness,       gdal.GDT_Float32, -9999)
-                add_raster('chroma_texture',    chroma_tex_n,   gdal.GDT_Float32, -9999)
-                add_raster('guard_dry_recovery',    dry_recovery.astype(np.uint8),    gdal.GDT_Byte, 0)
-                add_raster('guard_soil_homogeneity', soil_guard.astype(np.uint8),     gdal.GDT_Byte, 0)
-                add_raster('guard_cracked_soil', cracked_soil_guard.astype(np.uint8), gdal.GDT_Byte, 0)
-                add_raster('guard_dark_water',   dark_water_guard.astype(np.uint8),   gdal.GDT_Byte, 0)
+                add_raster('cive', cive, gdal.GDT_Float32, -9999,
+                           style_kind='continuous')
+                add_raster('exg', exg, gdal.GDT_Float32, -9999,
+                           style_kind='continuous')
+                add_raster('veg_index', veg, gdal.GDT_Float32, -9999,
+                           style_kind='continuous')
+                add_raster('spectral_index', spectral, gdal.GDT_Float32, -9999,
+                           style_kind='continuous')
+                add_raster('green_density', green_density, gdal.GDT_Float32, -9999,
+                           style_kind='continuous')
+                add_raster('dry_texture', dry_texture, gdal.GDT_Float32, -9999,
+                           style_kind='continuous')
+                add_raster('saturation', sat, gdal.GDT_Float32, -9999,
+                           style_kind='continuous')
+                add_raster('entropy_local', entropy, gdal.GDT_Float32, -9999,
+                           style_kind='continuous')
+                add_raster('richness', richness, gdal.GDT_Float32, -9999,
+                           style_kind='continuous')
+                add_raster('chroma_texture', chroma_tex_n, gdal.GDT_Float32, -9999,
+                           style_kind='continuous')
+                add_raster('guard_dry_recovery', dry_recovery.astype(np.uint8), gdal.GDT_Byte, 0,
+                           style_kind='binary_guard', style_label='1 · récupération végétation sèche')
+                add_raster('guard_soil_homogeneity', soil_guard.astype(np.uint8), gdal.GDT_Byte, 0,
+                           style_kind='binary_guard', style_label='1 · correction sol homogène')
+                add_raster('guard_cracked_soil', cracked_soil_guard.astype(np.uint8), gdal.GDT_Byte, 0,
+                           style_kind='binary_guard', style_label='1 · correction sol craquelé')
+                add_raster('guard_dark_water', dark_water_guard.astype(np.uint8), gdal.GDT_Byte, 0,
+                           style_kind='binary_guard', style_label='1 · correction eau sombre')
 
             # ── 12. Statistiques ─────────────────────────────────────────────
             labels = {
@@ -1247,6 +1551,7 @@ class BergeV7Algorithm(QgsProcessingAlgorithm):
 
             self._copy_vector_to_gpkg(mask_layer.source(), gpkg_out, 'emprise', feedback)
             self._write_tables_to_gpkg(gpkg_out, rows, metadata, effective_parameters, feedback)
+            self._apply_gpkg_styles(gpkg_out, raster_style_specs, feedback)
 
             # ── 15. Résumé ───────────────────────────────────────────────────
             feedback.pushInfo('=' * 64)
