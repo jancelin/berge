@@ -131,7 +131,7 @@ Processing pour permettre leur ajustement sans modifier le code.
 
 ### 3.1 Méthode recommandée : Éditeur de scripts Processing
 
-1. [⬇️ Télécharger Berge v0-7](https://github.com/jancelin/berge/releases/download/0.7/berge_v7_vegetation_rgb_texture.py)
+1. [⬇️ Télécharger Berge v0-7](https://github.com/jancelin/berge/releases/download/0.7.1/berge_v7_vegetation_rgb_texture.py)
 2. Dans QGIS, ouvrir le **Panneau Processing** (menu *Traitement → Boîte à
    outils*).
 3. En haut du panneau, cliquer sur l'icône **Python** puis
