@@ -386,7 +386,7 @@ class BergeV7Algorithm(QgsProcessingAlgorithm):
         self.addParameter(QgsProcessingParameterBoolean(
             self.KEEP_INTERMEDIATE,
             "Conserver les rasters intermédiaires de diagnostic dans le GeoPackage",
-            defaultValue=True
+            defaultValue=False
         ))
 
     # ── utilitaires numériques ────────────────────────────────────────────────
