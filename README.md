@@ -1,9 +1,9 @@
-# NOTICE BERGE v7
+# NOTICE BERGE v0.7
 
 ## Sommaire
 
 1. [Présentation](#1-présentation)
-2. [Ce qui change par rapport à BERGE v6](#2-ce-qui-change-par-rapport-à-berge-v6)
+2. [Ce qui change par rapport à BERGE v0.6](#2-ce-qui-change-par-rapport-à-berge-v0.6)
 3. [Installation dans QGIS](#3-installation-dans-qgis)
 4. [Paramètres du formulaire](#4-paramètres-du-formulaire)
 5. [Réglages de départ recommandés](#5-réglages-de-départ-recommandés)
@@ -18,7 +18,7 @@
 
 ## 1. Présentation
 
-BERGE v7 mesure automatiquement la couverture végétale de berges, fossés et
+BERGE v0.7 mesure automatiquement la couverture végétale de berges, fossés et
 micro-habitats de zone humide (emprise de 3×2 m à 25×15 m) à partir d'une
 orthophoto drone **RGB uniquement**. Aucune bande NIR n'est requise.
 
@@ -55,16 +55,16 @@ orthophoto drone **RGB uniquement**. Aucune bande NIR n'est requise.
 
 ---
 
-## 2. Ce qui change par rapport à BERGE v6
+## 2. Ce qui change par rapport à BERGE v0.6
 
 ### 2.1 Score spectral : 3 indices peu corrélés remplacent 4 indices redondants
 
-BERGE v6 utilisait VARI, ExG, GLI et NGRDI. Ces quatre indices dérivent tous
+BERGE v0.6 utilisait VARI, ExG, GLI et NGRDI. Ces quatre indices dérivent tous
 de la même quantité de base `G − R`, avec une corrélation mutuelle supérieure
 à 0,85 sur des données drone. Ils ne fournissaient qu'une seule dimension
 d'information utile.
 
-BERGE v7 les remplace par trois indices choisis pour leur complémentarité :
+BERGE v0.7 les remplace par trois indices choisis pour leur complémentarité :
 
 | Indice | Formule (valeurs normalisées 0–1) | Apport principal |
 |--------|-----------------------------------|------------------|
@@ -79,9 +79,9 @@ végétation.
 
 ### 2.2 Texture sèche simplifiée
 
-BERGE v5/v6 calculait `dry_texture = 0.55·var(Lum) + 0.45·var(VARI)`.
+BERGE v5/v0.6 calculait `dry_texture = 0.55·var(Lum) + 0.45·var(VARI)`.
 La variance de VARI est très corrélée à celle de la luminance, et diverge
-là où `G + R − B ≈ 0`. BERGE v7 utilise uniquement la **variance locale de
+là où `G + R − B ≈ 0`. BERGE v0.7 utilise uniquement la **variance locale de
 luminance** sur 3 fenêtres (7, 15, 31 px). Le résultat est plus stable et
 l'interprétation plus directe.
 
@@ -97,11 +97,11 @@ si la végétation sèche est aussi beige que le sol nu).
 
 ### 2.4 Logique micro-pixel assouplie
 
-BERGE v6 imposait `g_ch > MICRO_G ET (ExG_ch > s OU NGRDI > s)`.
+BERGE v0.6 imposait `g_ch > MICRO_G ET (ExG_ch > s OU NGRDI > s)`.
 Le `ET` sur `g_ch` excluait la végétation sèche claire dont la chrominance
 verte est modeste.
 
-BERGE v7 utilise un `OU` à double seuil :
+BERGE v0.7 utilise un `OU` à double seuil :
 
 ```
 pixel compté comme micro-vert si :
@@ -116,13 +116,13 @@ pixel compté comme micro-vert si :
 ### 2.5 Quatrième garde-fou : eau libre et pixels très sombres
 
 Les bords inondés d'un fossé ou d'un marais produisent des pixels très
-sombres et peu saturés qui peuvent perturber les statistiques. BERGE v7 les
+sombres et peu saturés qui peuvent perturber les statistiques. BERGE v0.7 les
 détecte et les reclasse en **NoData** (classe 0) avant le calcul des %.
 
 ### 2.6 Poids spectraux internes exposés dans l'interface
 
-BERGE v6 codait en dur `0.40·VARI + 0.30·ExG + 0.20·GLI + 0.10·NGRDI`.
-BERGE v7 expose les poids `WS_CIVE`, `WS_EXG`, `WS_VEG` dans le formulaire
+BERGE v0.6 codait en dur `0.40·VARI + 0.30·ExG + 0.20·GLI + 0.10·NGRDI`.
+BERGE v0.7 expose les poids `WS_CIVE`, `WS_EXG`, `WS_VEG` dans le formulaire
 Processing pour permettre leur ajustement sans modifier le code.
 
 ---
@@ -136,7 +136,7 @@ Processing pour permettre leur ajustement sans modifier le code.
 2. En haut du panneau, cliquer sur l'icône **Python** puis
    *Ouvrir l'éditeur de scripts Python…*
 3. Dans l'éditeur, cliquer sur **Ouvrir un script…** et sélectionner le
-   fichier `berge_v7_vegetation_rgb_texture.py`.
+   fichier `berge_v0.7_vegetation_rgb_texture.py`.
 4. Cliquer sur **Enregistrer sous…** et placer le script dans le dossier
    des scripts utilisateur QGIS :
    - Windows : `C:\Users\<nom>\AppData\Roaming\QGIS\QGIS3\profiles\default\processing\scripts\`
@@ -145,7 +145,7 @@ Processing pour permettre leur ajustement sans modifier le code.
    l'absence d'erreur de syntaxe.
 6. Fermer l'éditeur. Dans la boîte à outils Processing, le groupe **BERGE**
    doit apparaître avec l'algorithme
-   *BERGE v7 - RGB · CIVE+ExG+VEG · entropie · saturation · 4 garde-fous*.
+   *BERGE v0.7 - RGB · CIVE+ExG+VEG · entropie · saturation · 4 garde-fous*.
 
 > **Si le groupe BERGE n'apparaît pas** : cliquer sur l'icône de rafraîchissement
 > (flèche circulaire) en haut de la boîte à outils Processing, ou fermer et
@@ -153,12 +153,12 @@ Processing pour permettre leur ajustement sans modifier le code.
 
 ### 3.2 Méthode alternative : dépôt dans le dossier scripts
 
-Copier directement `berge_v7_vegetation_rgb_texture.py` dans le dossier
+Copier directement `berge_v0.7_vegetation_rgb_texture.py` dans le dossier
 scripts utilisateur indiqué ci-dessus, puis relancer QGIS.
 
 ### 3.3 Vérifier les dépendances
 
-BERGE v7 n'utilise que des modules inclus dans QGIS :
+BERGE v0.7 n'utilise que des modules inclus dans QGIS :
 
 ```python
 import numpy       # fourni avec QGIS
@@ -365,7 +365,7 @@ T_CRACK_SOIL_TEXTURE_MIN  = 0.15
 
 ## 6. Comprendre les garde-fous
 
-BERGE v7 applique quatre garde-fous dans l'ordre suivant, après la
+BERGE v0.7 applique quatre garde-fous dans l'ordre suivant, après la
 classification initiale par le score.
 
 ### GF1 — Récupération végétation sèche (cl.1 → cl.2)
@@ -509,7 +509,7 @@ Pour un site `exclos3` et la date `2025-11`, les fichiers produits sont :
 
 ```
 dossier_de_sortie/
-├── exclos3_2025-11_BERGE_v7.gpkg      ← GeoPackage principal
+├── exclos3_2025-11_BERGE_v0.7.gpkg      ← GeoPackage principal
 ├── exclos3_2025-11_stats_pct.csv      ← Statistiques tabulaires
 └── exclos3_2025-11_metadata.json      ← Paramètres + diagnostics
 ```
@@ -524,7 +524,7 @@ dossier_de_sortie/
 | `classes` | Classification finale avec table de couleurs |
 | `vegetation_stricte` | Masque binaire classes 3+4 |
 | `vegetation_ecologique` | Masque binaire classes 2+3+4 |
-| `berge_score` | Score continu BERGE v7 [0–1] |
+| `berge_score` | Score continu BERGE v0.7 [0–1] |
 
 **Rasters de diagnostic (si `Conserver intermédiaires = Oui`) :**
 `cive`, `exg`, `veg_index`, `spectral_index`, `green_density`,
@@ -567,7 +567,7 @@ La solution est de **fixer les bornes** sur une campagne de référence.
 
 **Campagne 1 (référence) :**
 
-1. Lancer BERGE v7 normalement (sans JSON de référence).
+1. Lancer BERGE v0.7 normalement (sans JSON de référence).
 2. Conserver le fichier `*_metadata.json` produit dans le dossier de sortie.
 
 **Campagnes suivantes :**
@@ -605,7 +605,7 @@ et garantit que les bornes ne seront pas saturées sur les campagnes suivantes.
 
 ### 10.1 Classification pixel à pixel
 
-BERGE v7 reste essentiellement une classification pixel par pixel avec un
+BERGE v0.7 reste essentiellement une classification pixel par pixel avec un
 lissage par fenêtres glissantes. Elle produit des contours irréguliers et de
 petits îlots de bruit. Le paramètre `MIN_PIXELS` (SieveFilter GDAL) atténue
 ce problème.
@@ -617,7 +617,7 @@ contours et la robustesse sur les textures complexes.
 ### 10.2 CIVE calibré pour des DN 0–255
 
 L'indice CIVE a été défini dans la littérature pour des images en niveaux de
-gris 0–255. BERGE v7 le calcule sur des valeurs normalisées [0–1], ce qui
+gris 0–255. BERGE v0.7 le calcule sur des valeurs normalisées [0–1], ce qui
 déplace l'espace des valeurs. La normalisation percentile corrige cet effet,
 mais les valeurs brutes de CIVE exportées dans le GeoPackage ne correspondent
 pas aux valeurs tabulées dans la littérature originale.
@@ -640,7 +640,7 @@ acquisitions en lumière diffuse et à heure fixe pour le suivi temporel.
 
 Le calcul de l'entropie locale sur 8 niveaux et une fenêtre de 15 px est le
 plus lent de l'algorithme (8 passes box_sum). Sur une image de 5000×5000 px,
-compter environ 30–60 s de plus par rapport à BERGE v6. Réduire
+compter environ 30–60 s de plus par rapport à BERGE v0.6. Réduire
 `ENTROPY_BINS` à 6 ou `ENTROPY_WINDOW` à 11 pour accélérer.
 
 ---
@@ -658,7 +658,7 @@ compter environ 30–60 s de plus par rapport à BERGE v6. Réduire
 
 ---
 
-*BERGE v7 — Julien Ancelin, INRAE — 2026*
+*BERGE v0.7 — Julien Ancelin, INRAE — 2026*
 *Algorithme reproductible sous licence libre. Citer comme : Ancelin J. (2026).
-BERGE v7 — Algorithme de suivi de la couverture végétale RGB pour les berges
-et fossés de zone humide. INRAE, Rochefort.*
+BERGE v0.7 — Algorithme de suivi de la couverture végétale RGB pour les berges
+et fossés de zone humide. INRAE DSLP, Saint Laurent de la Prée.*
