@@ -1,4 +1,4 @@
-# NOTICE BERGE v0.7
+# NOTICE BERGE v7.3
 
 ## Sommaire
 
@@ -17,7 +17,7 @@
 
 ## 1. Présentation
 
-BERGE v0.7 mesure automatiquement la couverture végétale de berges, fossés et
+BERGE v7.3 mesure automatiquement la couverture végétale de berges, fossés et
 micro-habitats de zone humide (emprise de 3×2 m à 25×15 m) à partir d'une
 orthophoto drone **RGB uniquement**. Aucune bande NIR n'est requise.
 
@@ -45,6 +45,21 @@ orthophoto drone **RGB uniquement**. Aucune bande NIR n'est requise.
 <img width="1098" height="330" alt="image" src="https://github.com/user-attachments/assets/0946bcfa-96c9-4c38-9061-ab26e6a619e0" />
 
 
+
+### Nouveautés v7.3 stable
+
+Cette version stabilise le compromis observé sur les orthophotos de test avec herbes sèches/brunes et sol argileux craquelé :
+
+- récupération des herbes sèches par score textural, densité de fibres et contexte végétalisé ;
+- séparation des fibres claires/paille et des fissures sombres du sol ;
+- veto renforcé du sol nu craquelé avec les paramètres validés :
+
+```text
+T_CRACK_DARK_DENSITY = 0.06
+T_CRACK_LIGHT_MAX    = 0.06
+T_CRACK_GREEN_MAX    = 0.12
+```
+
 ### Compatibilité
 
 - QGIS 3.36 LTR ou plus récent
@@ -58,13 +73,13 @@ orthophoto drone **RGB uniquement**. Aucune bande NIR n'est requise.
 
 ### 2.1 Méthode recommandée : Éditeur de scripts Processing
 
-1. [⬇️ Télécharger Berge v0-7](https://github.com/jancelin/berge/releases/download/0.7.2/berge_v7_vegetation_rgb_texture.py)
+1. [⬇️ Télécharger BERGE v7.3](https://github.com/jancelin/berge/releases/download/0.7.3/berge_v7_3_vegetation_rgb_texture.py)
 2. Dans QGIS, ouvrir le **Panneau Processing** (menu *Traitement → Boîte à
    outils*).
 3. En haut du panneau, cliquer sur l'icône **Python** puis
    *Ouvrir l'éditeur de scripts Python…*
 4. Dans l'éditeur, cliquer sur **Ouvrir un script…** et sélectionner le
-   fichier `berge_v7_vegetation_rgb_texture.py`.
+   fichier `berge_v7_3_vegetation_rgb_texture.py`.
 5. Cliquer sur **Enregistrer sous…** et placer le script dans le dossier
    des scripts utilisateur QGIS :
    - Windows : `C:\Users\<nom>\AppData\Roaming\QGIS\QGIS3\profiles\default\processing\scripts\`
@@ -73,7 +88,7 @@ orthophoto drone **RGB uniquement**. Aucune bande NIR n'est requise.
    l'absence d'erreur de syntaxe.
 7. Fermer l'éditeur. Dans la boîte à outils Processing, le groupe **BERGE**
    doit apparaître avec l'algorithme
-   *BERGE v7 - RGB · CIVE+ExG+VEG · entropie · saturation · 4 garde-fous*.
+   *BERGE v7.3 - RGB · herbes sèches · veto sol craquelé*.
 
 > **Si le groupe BERGE n'apparaît pas** : cliquer sur l'icône de rafraîchissement
 > (flèche circulaire) en haut de la boîte à outils Processing, ou fermer et
@@ -81,12 +96,12 @@ orthophoto drone **RGB uniquement**. Aucune bande NIR n'est requise.
 
 ### 2.2 Méthode alternative : dépôt dans le dossier scripts
 
-Copier directement `berge_v7_vegetation_rgb_texture.py` dans le dossier
+Copier directement `berge_v7_3_vegetation_rgb_texture.py` dans le dossier
 scripts utilisateur indiqué ci-dessus, puis relancer QGIS.
 
 ### 2.3 Vérifier les dépendances
 
-BERGE v0.7 n'utilise que des modules inclus dans QGIS :
+BERGE v7.3 n'utilise que des modules inclus dans QGIS :
 
 ```python
 import numpy       # fourni avec QGIS
@@ -185,25 +200,45 @@ La somme est automatiquement normalisée à 1.
 
 Contrainte vérifiée : `0 ≤ T_SOL < T_VEG < T_DENSE ≤ 1`.
 
-### 3.10 Garde-fous
+### 3.10 Garde-fous, herbes sèches et veto sol craquelé v7.3
 
-| Paramètre | Défaut | Description |
-|-----------|--------|-------------|
-| `T_DRY_RECOVERY` | 0.48 | Texture min pour passer cl.1 → cl.2 (récupération vég. sèche) |
-| `T_SOIL_HOMOGENEITY` | 0.22 | Texture max pour forcer cl.2 → cl.1 (sol homogène) |
-| `T_CRACK_SOIL_SPECTRAL_MAX` | 0.32 | Score spectral max pour le garde-fou sol craquelé |
-| `T_CRACK_SOIL_CHROMA_MAX` | 0.14 | Texture chromatique max (paramètre clé du garde-fou craquelé) |
+| Paramètre | Défaut v7.3 stable | Description |
+|-----------|--------------------|-------------|
+| `T_DRY_RECOVERY` | 0.48 | Texture min pour passer cl.1 → cl.2 avec soutien de micro-vert |
+| `T_SOIL_HOMOGENEITY` | 0.22 | Texture max pour forcer cl.2 → cl.1 sur sol homogène |
+| `T_CRACK_SOIL_SPECTRAL_MAX` | 0.36 | Score spectral max pour le premier garde-fou sol craquelé |
+| `T_CRACK_SOIL_CHROMA_MAX` | 0.16 | Texture chromatique max du premier garde-fou sol craquelé |
 | `T_CRACK_SOIL_TEXTURE_MIN` | 0.18 | Texture sèche min pour cibler le sol craquelé |
-| `T_DARK_WATER_LUM` | 0.08 | Luminance max pour le garde-fou eau libre |
-| `T_DARK_WATER_SAT` | 0.06 | Saturation max pour le garde-fou eau libre |
+| `T_DARK_WATER_LUM` | 0.08 | Luminance max pour le garde-fou eau libre / ombre profonde |
+| `T_DARK_WATER_SAT` | 0.06 | Saturation max pour le garde-fou eau libre / ombre profonde |
+| `T_DRY_VEG_SCORE` | 0.42 | Score composite minimal pour récupérer les herbes sèches peu vertes |
+| `T_DRY_VEG_TEXTURE` | 0.26 | Texture Lum minimale pour les herbes sèches |
+| `T_DRY_VEG_ENTROPY` | 0.30 | Entropie locale minimale pour les herbes sèches |
+| `T_DRY_VEG_EDGE` | 0.25 | Densité de bords minimale pour les herbes sèches |
+| `T_DRY_VEG_CHROMA` | 0.08 | Texture chromatique minimale pour les herbes sèches |
+| `T_DRY_VEG_YELLOW` | 0.25 | Signal jaune-brun minimal pour les herbes sèches |
+| `T_DRY_VEG_SAT` | 0.16 | Saturation minimale pour les herbes sèches |
+| `T_DRY_VEG_LUM_MIN` | 0.10 | Luminance minimale pour éviter ombre/eau |
+| `DRY_FIBRE_WINDOW` | 15 | Fenêtre de densité locale des fibres sèches / paille |
+| `T_DRY_FIBRE_DENSITY` | 0.055 | Densité locale minimale de fibres sèches |
+| `T_DRY_FIBRE_YELLOW` | 0.25 | Seuil jaune-brun des graines de fibres sèches |
+| `T_DRY_FIBRE_CHROMA` | 0.08 | Seuil chromatique des graines de fibres sèches |
+| `T_DRY_FIBRE_SAT` | 0.18 | Saturation minimale des graines paille |
+| `T_STRAW_LIGHT_ANOMALY` | 0.018 | Contraste clair minimal des fibres par rapport au voisinage |
+| `T_CRACK_DARK_DENSITY` | **0.06** | Veto sol craquelé : densité minimale de fissures sombres |
+| `T_CRACK_LIGHT_MAX` | **0.06** | Veto sol craquelé : densité maximale de fibres claires |
+| `T_CRACK_GREEN_MAX` | **0.12** | Veto sol craquelé : densité verte maximale autorisée |
+| `T_VEG_CONTEXT` | 0.080 | Densité locale minimale de voisinage végétalisé |
+
+Les trois paramètres en gras correspondent au réglage validé sur l'orthophoto de test `berge_2025-09/2025-11` : ils conservent la récupération des herbes sèches tout en reclassant le sol nu craquelé en classe 1.
 
 ### 3.11 Options générales
 
 | Paramètre | Défaut | Description |
 |-----------|--------|-------------|
-| `MIN_PIXELS` | 16 | Taille minimale des objets après SieveFilter. 0 = désactivé |
+| `MIN_PIXELS` | 8 | Taille minimale des objets après SieveFilter. 0 = désactivé |
 | `Pixels noirs = NoData` | Oui | Traiter RGB 0,0,0 comme hors emprise |
-| `Conserver les intermédiaires` | Oui | Exporter les rasters de diagnostic dans le GeoPackage |
+| `Conserver les intermédiaires` | Non | Exporter les rasters de diagnostic dans le GeoPackage. À activer pour calibration/diagnostic. |
 
 ---
 
@@ -228,11 +263,33 @@ T_DENSE = 0.74
 
 T_DRY_RECOVERY            = 0.48
 T_SOIL_HOMOGENEITY        = 0.22
-T_CRACK_SOIL_SPECTRAL_MAX = 0.32
-T_CRACK_SOIL_CHROMA_MAX   = 0.14
+T_CRACK_SOIL_SPECTRAL_MAX = 0.36
+T_CRACK_SOIL_CHROMA_MAX   = 0.16
 T_CRACK_SOIL_TEXTURE_MIN  = 0.18
 T_DARK_WATER_LUM          = 0.08
 T_DARK_WATER_SAT          = 0.06
+
+T_DRY_VEG_SCORE   = 0.42
+T_DRY_VEG_TEXTURE = 0.26
+T_DRY_VEG_ENTROPY = 0.30
+T_DRY_VEG_EDGE    = 0.25
+T_DRY_VEG_CHROMA  = 0.08
+T_DRY_VEG_YELLOW  = 0.25
+T_DRY_VEG_SAT     = 0.16
+T_DRY_VEG_LUM_MIN = 0.10
+
+DRY_FIBRE_WINDOW      = 15
+T_DRY_FIBRE_DENSITY   = 0.055
+T_DRY_FIBRE_YELLOW    = 0.25
+T_DRY_FIBRE_CHROMA    = 0.08
+T_DRY_FIBRE_SAT       = 0.18
+T_STRAW_LIGHT_ANOMALY = 0.018
+T_VEG_CONTEXT         = 0.080
+
+# Veto sol nu craquelé validé après test v7.3
+T_CRACK_DARK_DENSITY = 0.06
+T_CRACK_LIGHT_MAX    = 0.06
+T_CRACK_GREEN_MAX    = 0.12
 
 MICRO_G        = 0.34
 MICRO_G_STRICT = 0.40
@@ -243,7 +300,7 @@ DENSITY_WINDOW = 25
 TEXTURE_WINDOWS = 7,15,31
 ENTROPY_WINDOW  = 15
 ENTROPY_BINS    = 8
-MIN_PIXELS      = 16
+MIN_PIXELS      = 8
 ```
 
 ### 4.2 Si la résolution est très fine (GSD < 5 mm)
@@ -280,20 +337,37 @@ T_DRY_RECOVERY  = 0.42
 
 ### 4.5 Si le sol nu est très structuré (argile craquelée, sédiment ridé)
 
-Renforcer le garde-fou sol craquelé :
+Le profil v7.3 stable utilise déjà un veto renforcé, calibré sur un cas de sol argileux craquelé avec herbes sèches :
 
 ```text
-T_CRACK_SOIL_CHROMA_MAX   = 0.16   (remonter si sol craquelé encore en cl.2)
-T_CRACK_SOIL_SPECTRAL_MAX = 0.35
-T_CRACK_SOIL_TEXTURE_MIN  = 0.15
+T_CRACK_DARK_DENSITY = 0.06
+T_CRACK_LIGHT_MAX    = 0.06
+T_CRACK_GREEN_MAX    = 0.12
+```
+
+Pour un sol craquelé encore trop présent en classe 2, rendre le veto plus agressif :
+
+```text
+T_CRACK_DARK_DENSITY = 0.05
+T_CRACK_LIGHT_MAX    = 0.07
+T_CRACK_GREEN_MAX    = 0.14
+```
+
+Si, à l'inverse, des vraies herbes sèches sont reclassées en sol nu, assouplir le veto :
+
+```text
+T_CRACK_DARK_DENSITY = 0.08
+T_CRACK_LIGHT_MAX    = 0.04
+T_CRACK_GREEN_MAX    = 0.10
 ```
 
 ---
 
 ## 5. Comprendre les garde-fous
 
-BERGE v0.7 applique quatre garde-fous dans l'ordre suivant, après la
-classification initiale par le score.
+BERGE v7.3 applique plusieurs garde-fous dans l'ordre suivant, après la
+classification initiale par le score. Les étapes v7.3 ajoutent une récupération
+des fibres sèches clairsemées et un veto spécifique du sol nu craquelé.
 
 ### GF1 — Récupération végétation sèche (cl.1 → cl.2)
 
@@ -308,6 +382,29 @@ détectée par le score spectral.
 
 **Régler si** la végétation sèche est toujours en cl.1 :
 → baisser `T_DRY_RECOVERY` de 0.48 à 0.40–0.44.
+
+### GF1b — Récupération herbes sèches peu vertes (cl.1 → cl.2)
+
+**Quand :** le score spectral est faible, mais la zone présente une forte texture,
+de l'entropie, des bords fins, de la chroma-texture et/ou un signal jaune-brun.
+
+**Rôle :** récupérer les herbes sèches, pailles et tiges brunes qui ne ressortent
+pas assez dans `green_density`.
+
+### GF1c — Récupération fibres sèches clairsemées (cl.1 → cl.2)
+
+**Quand :** des graines locales de fibres claires / paille sont suffisamment
+denses dans une fenêtre `DRY_FIBRE_WINDOW`.
+
+**Couches à contrôler :** `dry_fibre_seed`, `dry_fibre_density`,
+`light_fibre_density`, `guard_dry_fibre`.
+
+### GF1d — Récupération contextuelle (cl.1 → cl.2)
+
+**Quand :** un pixel est faible individuellement mais se trouve dans un voisinage
+déjà végétalisé. Cette étape limite l'effet de fragmentation des herbes fines.
+
+**Couche à contrôler :** `vegetation_context` et `guard_context_recovery`.
 
 ### GF2 — Sol homogène (cl.2 → cl.1)
 
@@ -341,6 +438,29 @@ dry_texture  ≥ T_CRACK_SOIL_TEXTURE_MIN    (forte texture de luminance)
 | Sol craquelé encore en cl.2 | Augmenter `T_CRACK_SOIL_CHROMA_MAX` de 0.02 |
 | Végétation sèche reclassée en cl.1 | Diminuer `T_CRACK_SOIL_CHROMA_MAX` de 0.02 |
 
+### GF3b — Veto sol nu craquelé v7.3 (cl.2 → cl.1)
+
+**Quand :** le réseau de fissures sombres domine la densité de fibres claires,
+avec peu de micro-vert. C'est le cas typique d'un sol argileux nu très craquelé,
+qui peut sinon être confondu avec des herbes sèches par la texture.
+
+**Conditions principales :**
+```
+dark_crack_density ≥ T_CRACK_DARK_DENSITY
+light_fibre_density ≤ T_CRACK_LIGHT_MAX
+green_density       ≤ T_CRACK_GREEN_MAX
+```
+
+**Valeurs v7.3 stables validées :**
+```
+T_CRACK_DARK_DENSITY = 0.06
+T_CRACK_LIGHT_MAX    = 0.06
+T_CRACK_GREEN_MAX    = 0.12
+```
+
+**Couches à contrôler :** `dark_crack_density`, `light_fibre_density`,
+`guard_bare_cracked_soil`, puis `classes` en transparence sur l'orthophoto.
+
 ### GF4 — Eau libre / pixels très sombres (cl.≥1 → NoData)
 
 **Quand :** un pixel valide est très sombre et très peu saturé.
@@ -369,18 +489,30 @@ diagnostic dans le GeoPackage. Toutes les couches sont accessibles via
 
 | Couche | Valeurs | Usage |
 |--------|---------|-------|
-| `spectral_index` | 0–1 | Score spectral seul. Doit être élevé sur végétation verte, bas sur sol nu. |
-| `green_density` | 0–1 | Densité micro-pixels verts. Élevé sur toute végétation, bas sur sol nu pur. |
+| `spectral_index` | 0–1 | Score spectral seul. Élevé sur végétation verte, bas sur sol nu. |
+| `green_density` | 0–1 | Densité micro-pixels verts. Élevé sur végétation verte ou mixte. |
 | `dry_texture` | 0–1 | Variance Lum. Élevé sur végétation sèche ET sol craquelé. |
 | `saturation` | 0–1 | Saturation chromatique normalisée. |
 | `entropy_local` | 0–1 | Entropie locale de luminance normalisée. |
 | `richness` | 0–1 | Combinaison saturation + entropie. |
-| `chroma_texture` | 0–1 | Variance ExG_ch. Clé du garde-fou sol craquelé. |
+| `chroma_texture` | 0–1 | Variance chromatique locale. Aide à séparer paille/sol. |
+| `edge_density` | 0–1 | Densité locale de bords. Réagit aux fibres mais aussi aux fissures. |
+| `yellow_brown` | 0–1 | Signal jaune-brun utile pour herbes sèches / paille. |
+| `dry_vegetation_score` | 0–1 | Score spécialisé herbes sèches peu vertes. |
+| `dry_fibre_seed` | 0/1 | Graines locales de fibres sèches / paille. |
+| `dry_fibre_density` | 0–1 | Densité locale de graines de fibres sèches. |
+| `light_fibre_density` | 0–1 | Densité de fibres claires, utile pour conserver les pailles. |
+| `dark_crack_density` | 0–1 | Densité de fissures sombres, utile pour le veto sol craquelé. |
+| `vegetation_context` | 0–1 | Densité locale de voisinage végétalisé. |
 | `berge_score` | 0–1 | Score final avant classification. |
-| `guard_dry_recovery` | 0/1 | Pixels passés cl.1 → cl.2 par GF1. |
-| `guard_soil_homogeneity` | 0/1 | Pixels passés cl.2 → cl.1 par GF2. |
-| `guard_cracked_soil` | 0/1 | Pixels forcés cl.1 par GF3 (sol craquelé). |
-| `guard_dark_water` | 0/1 | Pixels exclus par GF4 (eau libre). |
+| `guard_dry_recovery` | 0/1 | Pixels passés cl.1 → cl.2 par récupération verte/texturée. |
+| `guard_dry_vegetation` | 0/1 | Pixels passés cl.1 → cl.2 par score herbes sèches. |
+| `guard_dry_fibre` | 0/1 | Pixels passés cl.1 → cl.2 par densité de fibres sèches. |
+| `guard_context_recovery` | 0/1 | Pixels récupérés par voisinage végétalisé. |
+| `guard_soil_homogeneity` | 0/1 | Pixels passés cl.2 → cl.1 par sol homogène. |
+| `guard_cracked_soil` | 0/1 | Pixels forcés cl.1 par premier garde-fou sol craquelé. |
+| `guard_bare_cracked_soil` | 0/1 | Pixels forcés cl.1 par veto sol nu craquelé v7.3. |
+| `guard_dark_water` | 0/1 | Pixels exclus par garde-fou eau libre / ombre profonde. |
 
 ### 6.2 Arbre de décision de réglage
 
@@ -436,7 +568,7 @@ Pour un site `exclos3` et la date `2025-11`, les fichiers produits sont :
 
 ```
 dossier_de_sortie/
-├── exclos3_2025-11_BERGE_v0.7.gpkg      ← GeoPackage principal
+├── exclos3_2025-11_BERGE_v7_3.gpkg      ← GeoPackage principal
 ├── exclos3_2025-11_stats_pct.csv      ← Statistiques tabulaires
 └── exclos3_2025-11_metadata.json      ← Paramètres + diagnostics
 ```
@@ -451,13 +583,17 @@ dossier_de_sortie/
 | `classes` | Classification finale avec table de couleurs |
 | `vegetation_stricte` | Masque binaire classes 3+4 |
 | `vegetation_ecologique` | Masque binaire classes 2+3+4 |
-| `berge_score` | Score continu BERGE v0.7 [0–1] |
+| `berge_score` | Score continu BERGE v7.3 [0–1] |
 
 **Rasters de diagnostic (si `Conserver intermédiaires = Oui`) :**
 `cive`, `exg`, `veg_index`, `spectral_index`, `green_density`,
 `dry_texture`, `saturation`, `entropy_local`, `richness`,
-`chroma_texture`, `guard_dry_recovery`, `guard_soil_homogeneity`,
-`guard_cracked_soil`, `guard_dark_water`
+`chroma_texture`, `edge_density`, `yellow_brown`, `dry_vegetation_score`,
+`dry_fibre_seed`, `dry_fibre_density`, `light_fibre_density`,
+`dark_crack_density`, `vegetation_context`, `guard_dry_recovery`,
+`guard_dry_vegetation`, `guard_dry_fibre`, `guard_context_recovery`,
+`guard_soil_homogeneity`, `guard_cracked_soil`, `guard_bare_cracked_soil`,
+`guard_dark_water`
 
 **Tables SQLite :**
 
@@ -494,7 +630,7 @@ La solution est de **fixer les bornes** sur une campagne de référence.
 
 **Campagne 1 (référence) :**
 
-1. Lancer BERGE v0.7 normalement (sans JSON de référence).
+1. Lancer BERGE v7.3 normalement (sans JSON de référence).
 2. Conserver le fichier `*_metadata.json` produit dans le dossier de sortie.
 
 **Campagnes suivantes :**
@@ -505,11 +641,11 @@ La solution est de **fixer les bornes** sur une campagne de référence.
 3. Laisser décoché `Utiliser les paramètres du JSON` si on veut conserver les
    paramètres actuels du formulaire.
 
-Les bornes de normalisation des 7 composantes
-(`CIVE`, `ExG`, `VEG`, `LUM_VAR`, `SAT`, `ENTROPY`, `CHROMA_VAR`)
-seront lues dans le JSON de référence.
+Les bornes de normalisation des composantes
+(`CIVE`, `ExG`, `VEG`, `LUM_VAR`, `SAT`, `ENTROPY`, `CHROMA_VAR`,
+`EDGE_DENSITY`, `YELLOW_BROWN`) seront lues dans le JSON de référence.
 
-### 9.3 Vérification dans les logs
+### 8.3 Vérification dans les logs
 
 Le log Processing indique pour chaque indice le mode de normalisation utilisé :
 
@@ -532,7 +668,7 @@ et garantit que les bornes ne seront pas saturées sur les campagnes suivantes.
 
 ### 9.1 Classification pixel à pixel
 
-BERGE v0.7 reste essentiellement une classification pixel par pixel avec un
+BERGE v7.3 reste essentiellement une classification pixel par pixel avec un
 lissage par fenêtres glissantes. Elle produit des contours irréguliers et de
 petits îlots de bruit. Le paramètre `MIN_PIXELS` (SieveFilter GDAL) atténue
 ce problème.
@@ -544,7 +680,7 @@ contours et la robustesse sur les textures complexes.
 ### 9.2 CIVE calibré pour des DN 0–255
 
 L'indice CIVE a été défini dans la littérature pour des images en niveaux de
-gris 0–255. BERGE v0.7 le calcule sur des valeurs normalisées [0–1], ce qui
+gris 0–255. BERGE v7.3 le calcule sur des valeurs normalisées [0–1], ce qui
 déplace l'espace des valeurs. La normalisation percentile corrige cet effet,
 mais les valeurs brutes de CIVE exportées dans le GeoPackage ne correspondent
 pas aux valeurs tabulées dans la littérature originale.
@@ -585,7 +721,7 @@ compter environ 30–60 s de plus par rapport à BERGE v0.6. Réduire
 
 ---
 
-*BERGE v0.7 — Julien Ancelin, INRAE — 2026*
+*BERGE v7.3 — Julien Ancelin, INRAE — 2026*
 *Algorithme reproductible sous licence libre. Citer comme : Ancelin J. (2026).
-BERGE v0.7 — Algorithme de suivi de la couverture végétale RGB pour les berges
+BERGE v7.3 — Algorithme de suivi de la couverture végétale RGB pour les berges
 et fossés de zone humide. INRAE DSLP, Saint Laurent de la Prée. https://github.com/jancelin/berge*
