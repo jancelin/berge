@@ -55,83 +55,11 @@ orthophoto drone **RGB uniquement**. Aucune bande NIR n'est requise.
 
 ---
 
-## 2. Ce qui change par rapport à BERGE v0.6
+## 2. Installation dans QGIS
 
-### 2.1 Score spectral : 3 indices peu corrélés remplacent 4 indices redondants
+### 2.1 Méthode recommandée : Éditeur de scripts Processing
 
-BERGE v0.6 utilisait VARI, ExG, GLI et NGRDI. Ces quatre indices dérivent tous
-de la même quantité de base `G − R`, avec une corrélation mutuelle supérieure
-à 0,85 sur des données drone. Ils ne fournissaient qu'une seule dimension
-d'information utile.
-
-BERGE v0.7 les remplace par trois indices choisis pour leur complémentarité :
-
-| Indice | Formule (valeurs normalisées 0–1) | Apport principal |
-|--------|-----------------------------------|------------------|
-| **CIVE** | `0.441·R − 0.811·G + 0.385·B` | Robustesse aux variations d'illumination (ombre, nuage) |
-| **ExG** | `2G − R − B` | Sensible à la végétation verte et mixte |
-| **VEG** | `G / (R^0.667 · B^0.333)` | Non-linéaire, moins saturé sur végétation dense ; complémentaire d'ExG |
-
-**Attention** : CIVE est un indice « sol », c'est-à-dire qu'une valeur élevée
-signale du sol nu. Il est automatiquement **inversé** avant d'être combiné
-(`1 − CIVE_normalisé`) pour que le score final reste croissant avec la
-végétation.
-
-### 2.2 Texture sèche simplifiée
-
-BERGE v5/v0.6 calculait `dry_texture = 0.55·var(Lum) + 0.45·var(VARI)`.
-La variance de VARI est très corrélée à celle de la luminance, et diverge
-là où `G + R − B ≈ 0`. BERGE v0.7 utilise uniquement la **variance locale de
-luminance** sur 3 fenêtres (7, 15, 31 px). Le résultat est plus stable et
-l'interprétation plus directe.
-
-### 2.3 Richesse texturale : deux nouveaux discriminants indépendants
-
-| Métrique | Calcul | Discriminant principal |
-|----------|--------|----------------------|
-| **Saturation chromatique** | `max(R,G,B) − min(R,G,B)` | Sol nu → saturation faible et homogène |
-| **Entropie locale de luminance** | Shannon sur 8 niveaux, fenêtre 15 px | Sol nu → entropie basse même si rugueux |
-
-Ces deux métriques sont indépendantes de la teinte (elles fonctionnent même
-si la végétation sèche est aussi beige que le sol nu).
-
-### 2.4 Logique micro-pixel assouplie
-
-BERGE v0.6 imposait `g_ch > MICRO_G ET (ExG_ch > s OU NGRDI > s)`.
-Le `ET` sur `g_ch` excluait la végétation sèche claire dont la chrominance
-verte est modeste.
-
-BERGE v0.7 utilise un `OU` à double seuil :
-
-```
-pixel compté comme micro-vert si :
-  g_ch > MICRO_G_STRICT  (suffisant seul : pixel nettement vert)
-  OU
-  (g_ch > MICRO_G ET (ExG_ch > MICRO_EXG OU NGRDI > MICRO_NGRDI))
-```
-
-`MICRO_G_STRICT` (défaut 0.40) est le seuil "sans doute".
-`MICRO_G` (défaut 0.34) est le seuil assoupli, valable seulement combiné.
-
-### 2.5 Quatrième garde-fou : eau libre et pixels très sombres
-
-Les bords inondés d'un fossé ou d'un marais produisent des pixels très
-sombres et peu saturés qui peuvent perturber les statistiques. BERGE v0.7 les
-détecte et les reclasse en **NoData** (classe 0) avant le calcul des %.
-
-### 2.6 Poids spectraux internes exposés dans l'interface
-
-BERGE v0.6 codait en dur `0.40·VARI + 0.30·ExG + 0.20·GLI + 0.10·NGRDI`.
-BERGE v0.7 expose les poids `WS_CIVE`, `WS_EXG`, `WS_VEG` dans le formulaire
-Processing pour permettre leur ajustement sans modifier le code.
-
----
-
-## 3. Installation dans QGIS
-
-### 3.1 Méthode recommandée : Éditeur de scripts Processing
-
-1. [⬇️ Télécharger Berge v0-7](https://github.com/jancelin/berge/releases/download/0.7.1/berge_v7_vegetation_rgb_texture.py)
+1. [⬇️ Télécharger Berge v0-7](https://github.com/jancelin/berge/releases/download/0.7.2/berge_v7_vegetation_rgb_texture.py)
 2. Dans QGIS, ouvrir le **Panneau Processing** (menu *Traitement → Boîte à
    outils*).
 3. En haut du panneau, cliquer sur l'icône **Python** puis
@@ -152,12 +80,12 @@ Processing pour permettre leur ajustement sans modifier le code.
 > (flèche circulaire) en haut de la boîte à outils Processing, ou fermer et
 > rouvrir QGIS.
 
-### 3.2 Méthode alternative : dépôt dans le dossier scripts
+### 2.2 Méthode alternative : dépôt dans le dossier scripts
 
 Copier directement `berge_v7_vegetation_rgb_texture.py` dans le dossier
 scripts utilisateur indiqué ci-dessus, puis relancer QGIS.
 
-### 3.3 Vérifier les dépendances
+### 2.3 Vérifier les dépendances
 
 BERGE v0.7 n'utilise que des modules inclus dans QGIS :
 
@@ -169,14 +97,13 @@ import json, csv, os, math, tempfile, shutil  # modules standard Python
 ```
 
 Aucun `pip install` n'est nécessaire.
-
 ---
 
-## 4. Paramètres du formulaire
+## 3. Paramètres du formulaire
 
 Les paramètres sont organisés en groupes dans le formulaire Processing.
 
-### 4.1 Entrées obligatoires
+### 3.1 Entrées obligatoires
 
 | Paramètre | Description |
 |-----------|-------------|
@@ -187,7 +114,7 @@ Les paramètres sont organisés en groupes dans le formulaire Processing.
 | `Nom du site` | Préfixe pour nommer les fichiers de sortie |
 | `Date / code campagne` | Deuxième partie du préfixe (ex. `2025-11`) |
 
-### 4.2 Reproductibilité
+### 3.2 Reproductibilité
 
 | Paramètre | Description |
 |-----------|-------------|
@@ -195,14 +122,14 @@ Les paramètres sont organisés en groupes dans le formulaire Processing.
 | `Utiliser les paramètres du JSON` | Si coché, les valeurs du formulaire sont ignorées |
 | `Réutiliser les bornes de normalisation` | Garantit des scores comparables entre campagnes |
 
-### 4.3 Normalisation robuste
+### 3.3 Normalisation robuste
 
 | Paramètre | Défaut | Description |
 |-----------|--------|-------------|
 | `P_LOW` | 2 | Percentile bas (écrête les valeurs aberrantes basses) |
 | `P_HIGH` | 98 | Percentile haut (écrête les valeurs aberrantes hautes) |
 
-### 4.4 Poids globaux du score BERGE (4 composantes)
+### 3.4 Poids globaux du score BERGE (4 composantes)
 
 La somme est automatiquement normalisée à 1.
 
@@ -213,7 +140,7 @@ La somme est automatiquement normalisée à 1.
 | `W_DRY_TEXTURE` | 0.25 | Variance Lum multi-échelle (végétation sèche) |
 | `W_RICHNESS` | 0.15 | Richesse texturale (saturation + entropie) |
 
-### 4.5 Poids internes du score spectral (3 indices)
+### 3.5 Poids internes du score spectral (3 indices)
 
 La somme est automatiquement normalisée à 1.
 
@@ -223,7 +150,7 @@ La somme est automatiquement normalisée à 1.
 | `WS_EXG` | 0.35 | ExG (végétation verte) |
 | `WS_VEG` | 0.25 | VEG (non-linéaire, complémentaire) |
 
-### 4.6 Densité locale de micro-pixels verts
+### 3.6 Densité locale de micro-pixels verts
 
 | Paramètre | Défaut | Description |
 |-----------|--------|-------------|
@@ -233,14 +160,14 @@ La somme est automatiquement normalisée à 1.
 | `MICRO_G` | 0.34 | Seuil g_ch mode souple (valable combiné avec ExG ou NGRDI) |
 | `MICRO_G_STRICT` | 0.40 | Seuil g_ch mode strict (suffisant seul) |
 
-### 4.7 Texture sèche
+### 3.7 Texture sèche
 
 | Paramètre | Défaut | Description |
 |-----------|--------|-------------|
 | `MULTISCALE_TEXTURE` | Oui | Calcul sur plusieurs fenêtres (recommandé) |
 | `TEXTURE_WINDOWS` | `7,15,31` | Fenêtres en pixels, séparées par des virgules |
 
-### 4.8 Richesse texturale
+### 3.8 Richesse texturale
 
 | Paramètre | Défaut | Description |
 |-----------|--------|-------------|
@@ -249,7 +176,7 @@ La somme est automatiquement normalisée à 1.
 | `ENTROPY_WINDOW` | 15 | Fenêtre pour l'entropie en pixels |
 | `ENTROPY_BINS` | 8 | Niveaux de quantification (4–16) |
 
-### 4.9 Seuils de classification
+### 3.9 Seuils de classification
 
 | Paramètre | Défaut | Frontière |
 |-----------|--------|-----------|
@@ -259,7 +186,7 @@ La somme est automatiquement normalisée à 1.
 
 Contrainte vérifiée : `0 ≤ T_SOL < T_VEG < T_DENSE ≤ 1`.
 
-### 4.10 Garde-fous
+### 3.10 Garde-fous
 
 | Paramètre | Défaut | Description |
 |-----------|--------|-------------|
@@ -271,7 +198,7 @@ Contrainte vérifiée : `0 ≤ T_SOL < T_VEG < T_DENSE ≤ 1`.
 | `T_DARK_WATER_LUM` | 0.08 | Luminance max pour le garde-fou eau libre |
 | `T_DARK_WATER_SAT` | 0.06 | Saturation max pour le garde-fou eau libre |
 
-### 4.11 Options générales
+### 3.11 Options générales
 
 | Paramètre | Défaut | Description |
 |-----------|--------|-------------|
@@ -281,9 +208,9 @@ Contrainte vérifiée : `0 ≤ T_SOL < T_VEG < T_DENSE ≤ 1`.
 
 ---
 
-## 5. Réglages de départ recommandés
+## 4. Réglages de départ recommandés
 
-### 5.1 Point de départ général (valeurs par défaut)
+### 4.1 Point de départ général (valeurs par défaut)
 
 Les valeurs par défaut sont calibrées pour les micro-habitats de zone humide
 du littoral atlantique français (berges et fossés de marais, GSD 5–30 mm).
@@ -320,7 +247,7 @@ ENTROPY_BINS    = 8
 MIN_PIXELS      = 16
 ```
 
-### 5.2 Si la résolution est très fine (GSD < 5 mm)
+### 4.2 Si la résolution est très fine (GSD < 5 mm)
 
 Augmenter les fenêtres de texture pour couvrir des structures physiques
 réalistes (brin d'herbe = 1–5 mm, touffe = 5–50 mm).
@@ -331,7 +258,7 @@ TEXTURE_WINDOWS = 9,21,41
 ENTROPY_WINDOW  = 21
 ```
 
-### 5.3 Si la résolution est plus grossière (GSD > 3 cm)
+### 4.3 Si la résolution est plus grossière (GSD > 3 cm)
 
 Réduire les fenêtres pour éviter les effets de bord.
 
@@ -341,7 +268,7 @@ TEXTURE_WINDOWS = 5,11,21
 ENTROPY_WINDOW  = 11
 ```
 
-### 5.4 Si la végétation sèche est abondante et mal détectée
+### 4.4 Si la végétation sèche est abondante et mal détectée
 
 Donner plus de poids à la texture et réduire le seuil `T_SOL` :
 
@@ -352,7 +279,7 @@ T_SOL           = 0.22
 T_DRY_RECOVERY  = 0.42
 ```
 
-### 5.5 Si le sol nu est très structuré (argile craquelée, sédiment ridé)
+### 4.5 Si le sol nu est très structuré (argile craquelée, sédiment ridé)
 
 Renforcer le garde-fou sol craquelé :
 
@@ -364,7 +291,7 @@ T_CRACK_SOIL_TEXTURE_MIN  = 0.15
 
 ---
 
-## 6. Comprendre les garde-fous
+## 5. Comprendre les garde-fous
 
 BERGE v0.7 applique quatre garde-fous dans l'ordre suivant, après la
 classification initiale par le score.
@@ -433,13 +360,13 @@ disparaissent :
 
 ---
 
-## 7. Guide de diagnostic et de réglage
+## 6. Guide de diagnostic et de réglage
 
 Activer `Conserver les rasters intermédiaires` pour accéder aux couches de
 diagnostic dans le GeoPackage. Toutes les couches sont accessibles via
 *Couche → Ajouter une couche → Raster…* en sélectionnant le `.gpkg`.
 
-### 7.1 Couches de diagnostic disponibles
+### 6.1 Couches de diagnostic disponibles
 
 | Couche | Valeurs | Usage |
 |--------|---------|-------|
@@ -456,7 +383,7 @@ diagnostic dans le GeoPackage. Toutes les couches sont accessibles via
 | `guard_cracked_soil` | 0/1 | Pixels forcés cl.1 par GF3 (sol craquelé). |
 | `guard_dark_water` | 0/1 | Pixels exclus par GF4 (eau libre). |
 
-### 7.2 Arbre de décision de réglage
+### 6.2 Arbre de décision de réglage
 
 ```
 La végétation sèche est en classe 1 ?
@@ -487,7 +414,7 @@ Des pixels sombres légitimes sont en NoData ?
     ou T_DARK_WATER_SAT (ex. 0.04)
 ```
 
-### 7.3 Interpréter le JSON de diagnostic (`diagnostic_stats`)
+### 6.3 Interpréter le JSON de diagnostic (`diagnostic_stats`)
 
 Le fichier `metadata.json` contient les percentiles p10/p25/p50/p75/p90 de
 chaque composante sur l'ensemble des pixels valides.
@@ -504,7 +431,7 @@ Valeurs de référence attendues sur une image bien équilibrée :
 
 ---
 
-## 8. Sorties produites
+## 7. Sorties produites
 
 Pour un site `exclos3` et la date `2025-11`, les fichiers produits sont :
 
@@ -554,9 +481,9 @@ les tables d'un coup.
 
 ---
 
-## 9. Reproductibilité entre campagnes
+## 8. Reproductibilité entre campagnes
 
-### 9.1 Principe
+### 8.1 Principe
 
 La normalisation percentile recalcule les bornes sur chaque image
 indépendamment. Si la composition végétale change entre campagnes, les bornes
@@ -564,7 +491,7 @@ changent aussi et les scores ne sont plus comparables.
 
 La solution est de **fixer les bornes** sur une campagne de référence.
 
-### 9.2 Procédure
+### 8.2 Procédure
 
 **Campagne 1 (référence) :**
 
@@ -594,7 +521,7 @@ ExG  : normalisation référence [-0.456789, 0.678901]
 
 Si la mention est `locale` au lieu de `référence`, le JSON n'a pas été lu.
 
-### 9.4 Recommandation
+### 8.4 Recommandation
 
 Conserver la campagne réalisée en conditions de végétation maximale (été /
 début automne) comme référence. Elle contient la plus grande plage spectrale
@@ -602,9 +529,9 @@ et garantit que les bornes ne seront pas saturées sur les campagnes suivantes.
 
 ---
 
-## 10. Limites connues
+## 9. Limites connues
 
-### 10.1 Classification pixel à pixel
+### 9.1 Classification pixel à pixel
 
 BERGE v0.7 reste essentiellement une classification pixel par pixel avec un
 lissage par fenêtres glissantes. Elle produit des contours irréguliers et de
@@ -615,7 +542,7 @@ Une approche OBIA (segmentation + classification Random Forest des objets) est
 envisagée pour BERGE v8 et devrait améliorer significativement la qualité des
 contours et la robustesse sur les textures complexes.
 
-### 10.2 CIVE calibré pour des DN 0–255
+### 9.2 CIVE calibré pour des DN 0–255
 
 L'indice CIVE a été défini dans la littérature pour des images en niveaux de
 gris 0–255. BERGE v0.7 le calcule sur des valeurs normalisées [0–1], ce qui
@@ -623,21 +550,21 @@ déplace l'espace des valeurs. La normalisation percentile corrige cet effet,
 mais les valeurs brutes de CIVE exportées dans le GeoPackage ne correspondent
 pas aux valeurs tabulées dans la littérature originale.
 
-### 10.3 VEG et les pixels très sombres
+### 9.3 VEG et les pixels très sombres
 
 L'indice VEG (`G / R^0.667 · B^0.333`) diverge sur les pixels sombres
 (R ≈ 0 ou B ≈ 0). Un garde minimal `eps = 1e-6` est appliqué, mais les
 valeurs de VEG restent instables dans les zones très sombres. Le garde-fou
 eau libre (GF4) écarte la plupart de ces pixels en amont.
 
-### 10.4 Variations d'illumination
+### 9.4 Variations d'illumination
 
 Même si CIVE est plus robuste que VARI aux variations d'illumination, des
 orthophotos acquises à des heures très différentes ou avec des conditions
 nuageuses inégales peuvent produire des scores non comparables. Préférer des
 acquisitions en lumière diffuse et à heure fixe pour le suivi temporel.
 
-### 10.5 Entropie locale et temps de calcul
+### 9.5 Entropie locale et temps de calcul
 
 Le calcul de l'entropie locale sur 8 niveaux et une fenêtre de 15 px est le
 plus lent de l'algorithme (8 passes box_sum). Sur une image de 5000×5000 px,
@@ -646,7 +573,7 @@ compter environ 30–60 s de plus par rapport à BERGE v0.6. Réduire
 
 ---
 
-## 11. Référence scientifique des indices
+## 10. Référence scientifique des indices
 
 | Indice | Référence |
 |--------|-----------|
@@ -662,4 +589,4 @@ compter environ 30–60 s de plus par rapport à BERGE v0.6. Réduire
 *BERGE v0.7 — Julien Ancelin, INRAE — 2026*
 *Algorithme reproductible sous licence libre. Citer comme : Ancelin J. (2026).
 BERGE v0.7 — Algorithme de suivi de la couverture végétale RGB pour les berges
-et fossés de zone humide. INRAE DSLP, Saint Laurent de la Prée.*
+et fossés de zone humide. INRAE DSLP, Saint Laurent de la Prée. https://github.com/jancelin/berge*
