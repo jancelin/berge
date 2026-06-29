@@ -3,16 +3,15 @@
 ## Sommaire
 
 1. [Présentation](#1-présentation)
-2. [Ce qui change par rapport à BERGE v0.6](#2-ce-qui-change-par-rapport-à-berge-v0.6)
-3. [Installation dans QGIS](#3-installation-dans-qgis)
-4. [Paramètres du formulaire](#4-paramètres-du-formulaire)
-5. [Réglages de départ recommandés](#5-réglages-de-départ-recommandés)
-6. [Comprendre les garde-fous](#6-comprendre-les-garde-fous)
-7. [Guide de diagnostic et de réglage](#7-guide-de-diagnostic-et-de-réglage)
-8. [Sorties produites](#8-sorties-produites)
-9. [Reproductibilité entre campagnes](#9-reproductibilité-entre-campagnes)
-10. [Limites connues](#10-limites-connues)
-11. [Référence scientifique des indices](#11-référence-scientifique-des-indices)
+2. [Installation dans QGIS](#3-installation-dans-qgis)
+3. [Paramètres du formulaire](#4-paramètres-du-formulaire)
+4. [Réglages de départ recommandés](#5-réglages-de-départ-recommandés)
+5. [Comprendre les garde-fous](#6-comprendre-les-garde-fous)
+6. [Guide de diagnostic et de réglage](#7-guide-de-diagnostic-et-de-réglage)
+7. [Sorties produites](#8-sorties-produites)
+8. [Reproductibilité entre campagnes](#9-reproductibilité-entre-campagnes)
+9. [Limites connues](#10-limites-connues)
+10. [Référence scientifique des indices](#11-référence-scientifique-des-indices)
 
 ---
 
